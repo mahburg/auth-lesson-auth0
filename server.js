@@ -1,11 +1,11 @@
 const express = require('express'),
-      session = require('express-session'),
-      bodyParser = require('body-parser'),
-      massive = require('massive'),
-      passport = require('passport'),
-      Auth0Strategy = require('passport-auth0'),
-      config = require('./config.js'),
-      cors = require('cors');
+  session = require('express-session'),
+  bodyParser = require('body-parser'),
+  massive = require('massive'),
+  passport = require('passport'),
+  Auth0Strategy = require('passport-auth0'),
+  config = require('./config.js'),
+  cors = require('cors');
 
 const app = express();
 
@@ -25,7 +25,9 @@ app.use(express.static('./public'));
 /////////////
 // DATABASE //
 /////////////
-const massiveInstance = massive.connectSync({connectionString: 'postgres://localhost/sandbox'})
+const massiveInstance = massive.connectSync({
+  connectionString: 'postgres://etjlulgutvdihj:b2866b01f50568df76c17a79915c397c6384b2dcdfee06b6d91700895d3a1e58@ec2-23-23-227-188.compute-1.amazonaws.com:5432/d207j79669ico4?ssl=true'
+})
 
 app.set('db', massiveInstance);
 const db = app.get('db');
@@ -38,19 +40,19 @@ const db = app.get('db');
 
 
 passport.use(new Auth0Strategy({
-   domain:       config.auth0.domain,
-   clientID:     config.auth0.clientID,
-   clientSecret: config.auth0.clientSecret,
-   callbackURL:  '/auth/callback'
+    domain: config.auth0.domain,
+    clientID: config.auth0.clientID,
+    clientSecret: config.auth0.clientSecret,
+    callbackURL: '/auth/callback'
   },
-  function(accessToken, refreshToken, extraParams, profile, done) {
+  function (accessToken, refreshToken, extraParams, profile, done) {
     //Find user in database
-    db.getUserByAuthId([profile.id], function(err, user) {
+    db.getUserByAuthId([profile.id], function (err, user) {
       user = user[0];
       if (!user) { //if there isn't one, we'll create one!
         console.log('CREATING USER');
-        db.createUserByAuth([profile.displayName, profile.id], function(err, user) {
-          console.log('USER CREATED', userA);
+        db.createUserByAuth([profile.displayName, profile.id], function (err, user) {
+          console.log('USER CREATED', user); // userA is not defined FIX THIS!!!!!!!!!!!!!!
           return done(err, user[0]); // GOES TO SERIALIZE USER
         })
       } else { //when we find the user, return it
@@ -62,19 +64,19 @@ passport.use(new Auth0Strategy({
 ));
 
 //THIS IS INVOKED ONE TIME TO SET THINGS UP
-passport.serializeUser(function(userA, done) {
+passport.serializeUser(function (userA, done) {
   console.log('serializing', userA);
   var userB = userA;
   //Things you might do here :
-   //Serialize just the id, get other information to add to session, 
+  //Serialize just the id, get other information to add to session, 
   done(null, userB); //PUTS 'USER' ON THE SESSION
 });
 
 //USER COMES FROM SESSION - THIS IS INVOKED FOR EVERY ENDPOINT
-passport.deserializeUser(function(userB, done) {
-  var userC = userC;
+passport.deserializeUser(function (userB, done) {
+  var userC = userB; // FIX THIS !!!!!!!!!!!!!!   var userC = userC doesn't work!
   //Things you might do here :
-    // Query the database with the user id, get other information to put on req.user
+  // Query the database with the user id, get other information to put on req.user
   done(null, userC); //PUTS 'USER' ON REQ.USER
 });
 
@@ -91,22 +93,38 @@ app.get('/auth', passport.authenticate('auth0'));
 //   res.redirect("/");
 // });
 
-app.get('/auth/callback',
-  passport.authenticate('auth0', {successRedirect: '/'}), function(req, res) {
-    res.status(200).send(req.user);
-})
+//LOCAL LOGIN (DOESN'T WORK)
+// app.post('/auth/local', function (req, res) {
+//   db.localLogin([req.body.username, req.body.password], function (err, user) {
+//     user = user[0];
+//     if (user) {
+//       console.log('FOUND USER', user);
+//       return done(err, user);
+//     } else {
+//       console.log('No such user.')
+//     }
+//   })
+// })
 
-app.get('/auth/me', function(req, res) {
+app.get('/auth/callback',
+  passport.authenticate('auth0', {
+    successRedirect: '/'
+  }),
+  function (req, res) {
+    res.status(200).send(req.user);
+  })
+
+app.get('/auth/me', function (req, res) {
   if (!req.user) return res.sendStatus(404);
   //THIS IS WHATEVER VALUE WE GOT FROM userC variable above.
   res.status(200).send(req.user);
 })
 
-app.get('/auth/logout', function(req, res) {
+app.get('/auth/logout', function (req, res) {
   req.logout();
   res.redirect('/');
 })
 
-app.listen(3000, function() {
+app.listen(3000, function () {
   console.log('Connected on 3000')
 })
